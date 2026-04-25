@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>KYC/KYB Entity Risk Scoring Engine</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg:       #f4f6fa;
+    --surface:  #ffffff;
+    --surface2: #eef1f7;
+    --border:   #dde2ee;
+    --navy:     #1b2a4a;
+    --teal:     #0f7c6e;
+    --gold:     #c8860a;
+    --red:      #c0392b;
+    --amber:    #d68910;
+    --green:    #1a7a4a;
+    --text:     #1a1f2e;
+    --muted:    #7a859e;
+    --high:     #c0392b;
+    --medium:   #d68910;
+    --low:      #1a7a4a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--navy);
+    padding: 0 32px;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    min-height: 56px;
+  }
+  .logo-block {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 0;
+    border-right: 1px solid rgba(255,255,255,.1);
+    padding-right: 24px;
+  }
+  .logo-icon {
+    width: 34px; height: 34px; background: var(--teal);
+    border-radius: 6px; display: flex; align-items: center;
+    justify-content: center; font-size: 16px;
+  }
+  .logo-text {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px; font-weight: 600;
+    color: #fff; letter-spacing: .5px;
+  }
+  .logo-sub { font-size: 10px; color: rgba(255,255,255,.45); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+  .nav-tabs {
+    display: flex; align-items: stretch;
+  }
+  .nav-tab {
+    padding: 0 20px;
+    display: flex; align-items: center;
+    font-size: 12px; color: rgba(255,255,255,.5);
+    cursor: pointer; border-bottom: 3px solid transparent;
+    transition: all .2s; letter-spacing: .3px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .nav-tab.active { color: #fff; border-bottom-color: var(--teal); }
+  .nav-tab:hover  { color: rgba(255,255,255,.85); }
+  .header-right {
+    display: flex; align-items: center; gap: 18px; padding: 14px 0;
+  }
+  .live-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(15,124,110,.25);
+    border: 1px solid rgba(15,124,110,.5);
+    border-radius: 20px; padding: 4px 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: #5af0d5; letter-spacing: 1px;
+  }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #5af0d5; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+  .clock { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(255,255,255,.4); }
+
+  /* ── LAYOUT ── */
+  .container { padding: 24px 32px; max-width: 1440px; margin: 0 auto; }
+
+  /* breadcrumb */
+  .breadcrumb {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--muted);
+    margin-bottom: 18px; letter-spacing: .5px;
+  }
+  .breadcrumb span { color: var(--navy); }
+
+  /* ── KPI STRIP ── */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  }
+  .kpi {
+    background: var(--surface);
+    padding: 18px 16px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .kpi-label {
+    font-size: 10px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1.2px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .kpi-value {
+    font-size: 26px; font-weight: 600;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--kpi-color, var(--navy));
+    line-height: 1.1;
+  }
+  .kpi-sub { font-size: 11px; color: var(--muted); }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  }
+  .card-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1.5px;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .card-title .count-badge {
+    background: var(--navy); color: #fff;
+    border-radius: 20px; padding: 2px 10px;
+    font-size: 10px;
+  }
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* ── GRIDS ── */
+  .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .row-2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .row-2b{ display: grid; grid-template-columns: 1fr 1.4fr; gap: 16px; margin-bottom: 20px; }
+  .row-1 { margin-bottom: 20px; }
+
+  /* ── RISK METER ── */
+  .risk-meter-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .risk-item {
+    display: grid; grid-template-columns: 120px 1fr 50px;
+    align-items: center; gap: 10px;
+  }
+  .risk-label { font-size: 12px; color: var(--text); }
+  .risk-bar-bg { background: var(--surface2); border-radius: 4px; height: 8px; overflow: hidden; }
+  .risk-bar    { height: 100%; border-radius: 4px; transition: width 1.2s ease; }
+  .risk-count  { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); text-align: right; }
+
+  /* ── BADGE ── */
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px;
+  }
+  .badge-high   { background: rgba(192,57,43,.1);  color: var(--high); }
+  .badge-medium { background: rgba(214,137,16,.12); color: var(--medium); }
+  .badge-low    { background: rgba(26,122,74,.1);   color: var(--low); }
+
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+  .dot-yes { background: var(--high); }
+  .dot-no  { background: #d0d5df; }
+
+  /* ── SCORE DIAL ── */
+  .score-ring {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 42px; height: 42px; border-radius: 50%;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+  }
+  .score-high   { background: rgba(192,57,43,.12); color: var(--high); border: 2px solid rgba(192,57,43,.3); }
+  .score-medium { background: rgba(214,137,16,.12); color: var(--medium); border: 2px solid rgba(214,137,16,.3); }
+  .score-low    { background: rgba(26,122,74,.1);   color: var(--low); border: 2px solid rgba(26,122,74,.3); }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; font-weight: 400;
+    text-transform: uppercase; letter-spacing: 1.2px;
+    color: var(--muted); padding: 10px 12px; text-align: left;
+    background: var(--surface2); white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 9px 12px; border-bottom: 1px solid #eef0f5; }
+  tbody tr:hover { background: #f8faff; }
+  .entity-name { font-weight: 500; color: var(--navy); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .entity-id   { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--teal); }
+
+  /* ── FILTERS ── */
+  .filters { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+  .filter-label { font-size: 10px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; letter-spacing: 1px; }
+  select, input[type=text] {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px; padding: 6px 12px;
+    font-size: 12px; font-family: 'IBM Plex Sans', sans-serif;
+    outline: none; cursor: pointer; transition: border-color .2s;
+  }
+  select:focus, input[type=text]:focus { border-color: var(--teal); }
+  input[type=text] { min-width: 200px; }
+
+  /* ── FLAG SUMMARY ── */
+  .flag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .flag-card {
+    background: var(--surface2); border-radius: 8px; padding: 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .flag-icon { font-size: 22px; }
+  .flag-val { font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 600; color: var(--navy); }
+  .flag-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── MODEL CARD ── */
+  .metric-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--surface2); }
+  .metric-row:last-child { border: none; }
+  .metric-name { font-size: 12px; color: var(--muted); }
+  .metric-val  { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--teal); }
+
+  /* ── FOOTER ── */
+  footer {
+    margin-top: 32px; padding: 16px 32px;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    background: var(--surface);
+  }
+  footer span { color: var(--navy); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-block">
+    <div class="logo-icon">🔎</div>
+    <div>
+      <div class="logo-text">KYC/KYB Risk Engine</div>
+      <div class="logo-sub">Entity Due Diligence Platform</div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <div class="nav-tab active">Overview</div>
+    <div class="nav-tab">Alert Queue</div>
+    <div class="nav-tab">Model Insights</div>
+    <div class="nav-tab">Jurisdictions</div>
+  </div>
+  <div class="header-right">
+    <div class="live-pill"><div class="live-dot"></div>SCREENING ACTIVE</div>
+    <div class="clock" id="clock">--:--:-- IST</div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="breadcrumb">KYC/KYB &rsaquo; <span>Entity Risk Dashboard</span> &rsaquo; Kishore U. — AML/KYC Compliance + Data Analytics</div>
+
+  <!-- KPI STRIP -->
+  <div class="kpi-strip">
+    <div class="kpi" style="--kpi-color:#1b2a4a">
+      <div class="kpi-label">Total Entities</div>
+      <div class="kpi-value">1,000</div>
+      <div class="kpi-sub">Screened this cycle</div>
+    </div>
+    <div class="kpi" style="--kpi-color:#c0392b">
+      <div class="kpi-label">High-Risk Entities</div>
+      <div class="kpi-value">205</div>
+      <div class="kpi-sub">20.5% alert rate</div>
+    </div>
+    <div class="kpi" style="--kpi-color:#0f7c6e">
+      <div class="kpi-label">World-Check Hits</div>
+      <div class="kpi-value">77</div>
+      <div class="kpi-sub">Sanctions / watchlist</div>
+    </div>
+    <div class="kpi" style="--kpi-color:#c8860a">
+      <div class="kpi-label">PEP Flagged</div>
+      <div class="kpi-value">66</div>
+      <div class="kpi-sub">UBO-level matches</div>
+    </div>
+    <div class="kpi" style="--kpi-color:#c0392b">
+      <div class="kpi-label">Shell Companies</div>
+      <div class="kpi-value">109</div>
+      <div class="kpi-sub">Opacity flag triggered</div>
+    </div>
+    <div class="kpi" style="--kpi-color:#0f7c6e">
+      <div class="kpi-label">Model AUC</div>
+      <div class="kpi-value">1.00</div>
+      <div class="kpi-sub">Gradient Boosting</div>
+    </div>
+  </div>
+
+  <!-- ROW 1: Sector | Jurisdiction | Risk Breakdown -->
+  <div class="row-3">
+    <div class="card">
+      <div class="card-title">Alerts by Sector <span class="count-badge">205 alerts</span></div>
+      <div class="chart-wrap"><canvas id="sectorChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Jurisdiction Risk Distribution</div>
+      <div class="chart-wrap"><canvas id="jurisChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Entity Risk Tier Split</div>
+      <div class="chart-wrap"><canvas id="tierChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ROW 2: KYB Flags | Model Metrics -->
+  <div class="row-2b">
+    <div class="card">
+      <div class="card-title">KYB Red-Flag Summary</div>
+      <div class="flag-grid">
+        <div class="flag-card"><div class="flag-icon">🌐</div><div><div class="flag-val">140</div><div class="flag-lbl">Offshore Jurisdictions</div></div></div>
+        <div class="flag-card"><div class="flag-icon">⚠️</div><div><div class="flag-val">77</div><div class="flag-lbl">World-Check Hits</div></div></div>
+        <div class="flag-card"><div class="flag-icon">👤</div><div><div class="flag-val">66</div><div class="flag-lbl">PEP Matches</div></div></div>
+        <div class="flag-card"><div class="flag-icon">🏴</div><div><div class="flag-val">77</div><div class="flag-lbl">Sanctions Hits</div></div></div>
+        <div class="flag-card"><div class="flag-icon">🐚</div><div><div class="flag-val">109</div><div class="flag-lbl">Shell Companies</div></div></div>
+        <div class="flag-card"><div class="flag-icon">📰</div><div><div class="flag-val">76</div><div class="flag-lbl">Adverse Media</div></div></div>
+        <div class="flag-card"><div class="flag-icon">📄</div><div><div class="flag-val">85</div><div class="flag-lbl">Incomplete Docs</div></div></div>
+        <div class="flag-card"><div class="flag-icon">🏗️</div><div><div class="flag-val">205</div><div class="flag-lbl">ML High-Risk Alerts</div></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">ML Model Performance · Gradient Boosting</div>
+      <div class="metric-row"><span class="metric-name">Accuracy</span><span class="metric-val">1.0000</span></div>
+      <div class="metric-row"><span class="metric-name">Precision</span><span class="metric-val">1.0000</span></div>
+      <div class="metric-row"><span class="metric-name">Recall</span><span class="metric-val">1.0000</span></div>
+      <div class="metric-row"><span class="metric-name">F1 Score</span><span class="metric-val">1.0000</span></div>
+      <div class="metric-row"><span class="metric-name">ROC-AUC</span><span class="metric-val">1.0000</span></div>
+      <div class="metric-row"><span class="metric-name">5-Fold CV AUC (mean ± std)</span><span class="metric-val">1.0000 ± 0.0000</span></div>
+
+      <div style="margin-top:16px">
+        <div class="card-title" style="margin-bottom:10px">Feature Importance · Top Drivers</div>
+        <div id="featureList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 3: Alert Queue Table -->
+  <div class="card row-1">
+    <div class="card-title">
+      KYB Alert Queue · High-Risk Entities
+      <span class="count-badge" id="alertCountBadge">205 alerts</span>
+    </div>
+    <div class="filters">
+      <span class="filter-label">Filter:</span>
+      <select id="jurisRiskFilter" onchange="filterTable()">
+        <option value="">All Jurisdictions</option>
+        <option value="High">Offshore / High-Risk</option>
+        <option value="Medium">Medium-Risk</option>
+        <option value="Low">Low-Risk Jurisdiction</option>
+      </select>
+      <select id="sectorFilter" onchange="filterTable()">
+        <option value="">All Sectors</option>
+        <option>Cryptocurrency</option>
+        <option>Arms &amp; Defense</option>
+        <option>Gambling</option>
+        <option>Mining</option>
+        <option>Oil &amp; Gas Trading</option>
+        <option>Real Estate</option>
+        <option>Import/Export</option>
+      </select>
+      <select id="flagFilter" onchange="filterTable()">
+        <option value="">All Alerts</option>
+        <option value="pep">PEP Flagged</option>
+        <option value="sanctions">Sanctions Hit</option>
+        <option value="shell">Shell Company</option>
+        <option value="adverse">Adverse Media</option>
+        <option value="docs">Docs Incomplete</option>
+      </select>
+      <input type="text" id="searchInput" placeholder="Search entity name / ID…" oninput="filterTable()"/>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Entity ID</th><th>Entity Name</th><th>Type</th>
+            <th>Jurisdiction</th><th>Sector</th>
+            <th>ML Score</th><th>Risk Tier</th>
+            <th>World-Check</th><th>PEP</th><th>Shell Co.</th><th>Adverse Media</th><th>Docs</th>
+          </tr>
+        </thead>
+        <tbody id="alertTable"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace" id="rowCount"></div>
+  </div>
+</div>
+
+<footer>
+  <div><span>KYC/KYB Entity Risk Scoring Engine</span> · Kishore U. · AML/KYC + Data Analytics</div>
+  <div>Python · scikit-learn (Gradient Boosting) · Chart.js · 1,000 Synthetic Entities</div>
+</footer>
+
+<script>
+// ── CLOCK ──
+function tick(){
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})+' IST';
+}
+setInterval(tick,1000); tick();
+
+// ── CHART DEFAULTS ──
+Chart.defaults.font.family = "'IBM Plex Sans',sans-serif";
+Chart.defaults.color = '#7a859e';
+Chart.defaults.borderColor = '#dde2ee';
+
+// Sector alerts
+const sectorData = [
+  {sector:"IT Services",alerts:28},{sector:"Real Estate",alerts:24},
+  {sector:"Cryptocurrency",alerts:22},{sector:"Import/Export",alerts:19},
+  {sector:"Oil & Gas Trading",alerts:17},{sector:"Manufacturing",alerts:16},
+  {sector:"Gambling",alerts:15},{sector:"Mining",alerts:14},
+  {sector:"Money Services",alerts:12},{sector:"Hospitality",alerts:10},
+  {sector:"Arms & Defense",alerts:9},{sector:"Healthcare",alerts:8},
+  {sector:"Retail",alerts:5},{sector:"Logistics",alerts:4},{sector:"Education",alerts:2},
+];
+const highRiskSectors = ["Cryptocurrency","Arms & Defense","Gambling","Mining","Oil & Gas Trading"];
+
+new Chart(document.getElementById('sectorChart'),{
+  type:'bar',
+  data:{
+    labels: sectorData.map(d=>d.sector),
+    datasets:[{
+      label:'Alerts',
+      data: sectorData.map(d=>d.alerts),
+      backgroundColor: sectorData.map(d=>
+        highRiskSectors.includes(d.sector)
+          ? 'rgba(192,57,43,.75)' : 'rgba(15,124,110,.65)'),
+      borderRadius:3, borderWidth:0
+    }]
+  },
+  options:{
+    indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{x:{grid:{color:'#eef1f7'}}, y:{grid:{display:false},ticks:{font:{size:10}}}}
+  }
+});
+
+// Jurisdiction doughnut
+new Chart(document.getElementById('jurisChart'),{
+  type:'doughnut',
+  data:{
+    labels:['Offshore (High)','Medium-Risk','Low-Risk'],
+    datasets:[{
+      data:[140,120,740],
+      backgroundColor:['rgba(192,57,43,.8)','rgba(214,137,16,.8)','rgba(26,122,74,.8)'],
+      borderWidth:0
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:10,padding:10}}}
+  }
+});
+
+// Risk tier bar
+new Chart(document.getElementById('tierChart'),{
+  type:'bar',
+  data:{
+    labels:['High Risk','Medium Risk','Low Risk'],
+    datasets:[{
+      data:[205,0,795],
+      backgroundColor:['rgba(192,57,43,.8)','rgba(214,137,16,.8)','rgba(26,122,74,.8)'],
+      borderRadius:5, borderWidth:0
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{x:{grid:{display:false}},y:{grid:{color:'#eef1f7'}}}
+  }
+});
+
+// Feature importance
+const features = [
+  {feature:"UBO Opacity Score",importance:.2812},
+  {feature:"World-Check Hit",importance:.1944},
+  {feature:"Alert Signal Count",importance:.1523},
+  {feature:"Structure Complexity",importance:.1204},
+  {feature:"Jurisdiction Risk",importance:.0891},
+  {feature:"Sector Risk",importance:.0612},
+  {feature:"Financial Opacity",importance:.0389},
+  {feature:"Adverse Media",importance:.0312},
+  {feature:"Docs Complete",importance:.0201},
+  {feature:"Reg. Age (Years)",importance:.0112},
+];
+const maxImp = features[0].importance;
+const featDiv = document.getElementById('featureList');
+features.forEach(f=>{
+  const pct = (f.importance / maxImp * 100).toFixed(0);
+  featDiv.innerHTML += `
+  <div style="display:grid;grid-template-columns:160px 1fr 46px;align-items:center;gap:8px;margin-bottom:8px">
+    <div style="font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.feature}</div>
+    <div style="background:var(--surface2);border-radius:3px;height:5px;overflow:hidden">
+      <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#0f7c6e,#1b2a4a);border-radius:3px;transition:width 1.2s ease"></div>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);text-align:right">${(f.importance*100).toFixed(1)}%</div>
+  </div>`;
+});
+
+// ── TABLE DATA ──
+const TYPES = ["Private Limited","LLP","Public Limited","Partnership","Sole Proprietor","Trust"];
+const SECTORS = ["Cryptocurrency","Arms & Defense","Gambling","Mining","Oil & Gas Trading",
+                 "Real Estate","Import/Export","IT Services","Healthcare","Retail","Hospitality","Money Services"];
+const JURIS_HIGH = ["British Virgin Islands","Cayman Islands","Panama","Seychelles","Marshall Islands","Vanuatu","Belize"];
+const JURIS_MED  = ["Cyprus","Malta","Hong Kong","Dubai","Singapore"];
+const JURIS_LOW  = ["India","USA","UK","Germany","Australia","Japan"];
+const SECTORS_HR = ["Cryptocurrency","Arms & Defense","Gambling","Mining","Oil & Gas Trading"];
+const NAMES_SFX  = ["Holdings","Ventures","Trading","Capital","Group","Enterprises","Consulting","Solutions"];
+const SURNAMES   = ["Kumar","Sharma","Patel","Singh","Mehta","Reddy","Chen","Williams","Al-Farsi","Gupta"];
+
+function randItem(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function seedRand(seed){ let s=seed; return ()=>{ s=(s*16807)%2147483647; return (s-1)/2147483646; }; }
+
+const tableData = Array.from({length:205},(_,i)=>{
+  const rng = seedRand(i*31+7);
+  const jRisk = rng()<.68 ? "High" : rng()<.5 ? "Medium" : "Low";
+  const sector = rng()<.45 ? randItem(SECTORS_HR) : randItem(SECTORS);
+  const score  = Math.round(65 + rng()*34);
+  return {
+    entity_id: `ENT${String(i+1).padStart(5,'0')}`,
+    entity_name: `${SURNAMES[i%SURNAMES.length]} ${randItem(NAMES_SFX)} ${'Ltd'}`,
+    entity_type: TYPES[i%TYPES.length],
+    jurisdiction: jRisk==="High" ? randItem(JURIS_HIGH) : jRisk==="Medium" ? randItem(JURIS_MED) : randItem(JURIS_LOW),
+    jurisdiction_risk: jRisk,
+    sector,
+    ml_risk_score: score,
+    ml_risk_tier: score>=65?"High":score>=35?"Medium":"Low",
+    worldcheck_hit: rng()<.38?1:0,
+    ubo_pep_flag:   rng()<.32?1:0,
+    shell_company_flag: rng()<.53?1:0,
+    adverse_media_flag: rng()<.37?1:0,
+    docs_complete: rng()<.42?0:1,
+  };
+});
+
+function filterTable(){
+  const jRisk  = document.getElementById('jurisRiskFilter').value;
+  const sector = document.getElementById('sectorFilter').value;
+  const flag   = document.getElementById('flagFilter').value;
+  const search = document.getElementById('searchInput').value.toLowerCase();
+
+  let filtered = tableData.filter(r=>{
+    if(jRisk && r.jurisdiction_risk !== jRisk) return false;
+    if(sector && r.sector !== sector) return false;
+    if(flag==='pep' && !r.ubo_pep_flag) return false;
+    if(flag==='sanctions' && !r.worldcheck_hit) return false;
+    if(flag==='shell' && !r.shell_company_flag) return false;
+    if(flag==='adverse' && !r.adverse_media_flag) return false;
+    if(flag==='docs' && r.docs_complete) return false;
+    if(search && !r.entity_id.toLowerCase().includes(search) && !r.entity_name.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  renderTable(filtered);
+}
+
+function renderTable(data){
+  const tbody = document.getElementById('alertTable');
+  tbody.innerHTML = '';
+  data.forEach(r=>{
+    const sc = r.ml_risk_score;
+    const scClass = sc>=65?'score-high':sc>=35?'score-medium':'score-low';
+    const tierClass = r.ml_risk_tier==='High'?'badge-high':r.ml_risk_tier==='Medium'?'badge-medium':'badge-low';
+    tbody.innerHTML += `
+    <tr>
+      <td class="entity-id">${r.entity_id}</td>
+      <td><div class="entity-name" title="${r.entity_name}">${r.entity_name}</div></td>
+      <td style="color:var(--muted);font-size:11px">${r.entity_type}</td>
+      <td>${r.jurisdiction} ${r.jurisdiction_risk==='High'?'<span style="color:var(--red);font-size:10px">⚠</span>':''}</td>
+      <td>${r.sector}</td>
+      <td><div class="score-ring ${scClass}">${sc}</div></td>
+      <td><span class="badge ${tierClass}">${r.ml_risk_tier}</span></td>
+      <td><span class="dot ${r.worldcheck_hit?'dot-yes':'dot-no'}"></span>${r.worldcheck_hit?'<b style="color:var(--red)">HIT</b>':'—'}</td>
+      <td><span class="dot ${r.ubo_pep_flag?'dot-yes':'dot-no'}"></span>${r.ubo_pep_flag?'Yes':'—'}</td>
+      <td><span class="dot ${r.shell_company_flag?'dot-yes':'dot-no'}"></span>${r.shell_company_flag?'Yes':'—'}</td>
+      <td><span class="dot ${r.adverse_media_flag?'dot-yes':'dot-no'}"></span>${r.adverse_media_flag?'Yes':'—'}</td>
+      <td>${r.docs_complete?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--red)">✗ Missing</span>'}</td>
+    </tr>`;
+  });
+  document.getElementById('rowCount').textContent = `Showing ${data.length} of ${tableData.length} high-risk entities`;
+  document.getElementById('alertCountBadge').textContent = `${data.length} alerts`;
+}
+renderTable(tableData);
+</script>
+</body>
+</html>
