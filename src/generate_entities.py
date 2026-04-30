@@ -175,7 +175,7 @@ def generate_entities(n=1000):
         })
 
     df = pd.DataFrame(records)
-    df.to_csv("/home/claude/kyc_engine/entities.csv", index=False)
+    df.to_csv("/Users/kishoreu/Documents/GitHub/KYC-KYB-Entity-Risk-Scoring-Engine/data/entities.csv", index=False)
     print(f"✅ Generated {n} entities | High-Risk: {df['sar_label'].sum()} ({df['sar_label'].mean()*100:.1f}%)")
     return df
 

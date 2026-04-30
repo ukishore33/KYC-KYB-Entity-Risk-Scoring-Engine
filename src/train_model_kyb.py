@@ -17,7 +17,7 @@ from sklearn.metrics import (
 )
 
 def train_model():
-    df = pd.read_csv("/home/claude/kyc_engine/entities.csv")
+    df = pd.read_csv("/Users/kishoreu/Documents/GitHub/KYC-KYB-Entity-Risk-Scoring-Engine/data/entities.csv")
 
     # ── FEATURE ENGINEERING ────────────────────────────────────────────────
     le = LabelEncoder()
@@ -132,7 +132,7 @@ def train_model():
     df["ml_risk_tier"]  = df["ml_risk_score"].apply(risk_tier)
     df["ml_alert"]      = (df["ml_risk_score"] >= 65).astype(int)
 
-    df.to_csv("/home/claude/kyc_engine/entities_scored.csv", index=False)
+    df.to_csv("//Users/kishoreu/Documents/GitHub/KYC-KYB-Entity-Risk-Scoring-Engine/data/entities_scored.csv", index=False)
 
     # ── RISK TIER BREAKDOWN BY SECTOR ─────────────────────────────────────
     sector_breakdown = (
@@ -177,7 +177,7 @@ def train_model():
         "juris_breakdown":    juris_breakdown,
     }
 
-    with open("/home/claude/kyc_engine/model_results.json", "w") as f:
+    with open("/Users/kishoreu/Documents/GitHub/KYC-KYB-Entity-Risk-Scoring-Engine/data/model_results.json", "w") as f:
         json.dump(output, f, indent=2)
 
     print("✅ Model training complete!")
