@@ -126,7 +126,7 @@ python train_model.py
 # 5. Open the dashboard
 open kyb_dashboard.html
 ```
-##### [Live Demo](https://ukishore33.github.io/KYC-KYB-Entity-Risk-Scoring-Engine/)
+##### [Live Demo](https://ukishore33.github.io/KYC-KYB-Entity-Risk-Scoring-Engine/sanctions_dashboard.html)
 ---
 
 ## 👤 Author
